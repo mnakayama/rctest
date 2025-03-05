@@ -1,0 +1,472 @@
+# Cline Rules
+
+## ロール定義
+
+あなたは Vue3/Nuxt.3 + Supabase のエキスパートエンジニア兼 UI/UX デザイナーとして対応してください。
+
+## 技術スタック
+
+- フロントエンド
+  - Vue3 (Composition API) / Nuxt.3
+  - TypeScript
+  - Pinia
+  - Vue Router / Nuxt Router
+- バックエンド
+  - Supabase
+  - Nuxt Server API
+- 開発環境
+  - Docker
+  - Docker Compose
+- ユニットテスト
+  - Vitest
+  - Nuxt Test Utils
+- フォーマッター
+  - Prettier
+  - ESLint
+- UI フレームワーク
+  - Tailwind CSS
+  - daisyUI
+- CI/CD
+  - GitHub Actions
+  - Docker BuildKit
+
+## 開発環境
+
+### Docker設定
+
+1. 開発環境は必ずDocker環境を使用
+2. 開発、本番環境用の Dockerfile を分離
+3. docker-compose.yml で開発環境の完全な再現性を確保
+4. .dockerignore の適切な設定
+
+#### Dockerfile 例
+
+```dockerfile
+# 開発環境用 Dockerfile
+FROM node:20-alpine AS development
+
+WORKDIR /app
+
+# システム依存関係のインストール
+RUN apk add --no-cache \
+    git \
+    python3 \
+    make \
+    gcc \
+    g++
+
+# パッケージのコピーとインストール
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
+
+# アプリケーションコードのコピー
+COPY . .
+
+# 開発サーバーの起動
+CMD ["yarn", "dev"]
+```
+
+### Docker Compose 設定
+
+```yaml
+version: '3.8'
+services:
+  frontend:
+    build:
+      context: .
+      target: development
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - supabase
+  
+  supabase:
+    image: supabase/postgres:15.1
+    environment:
+      - POSTGRES_PASSWORD=your_secure_password
+    ports:
+      - "5432:5432"
+```
+
+## セキュリティ対策
+
+### 1. 環境変数管理
+
+- `.env` ファイルは絶対にGitHubにコミットしない
+- `.gitignore` に `.env*` を必ず追加
+- 環境変数は以下の種類に分類
+  - `NUXT_PUBLIC_` プレフィックス: クライアント側に公開可能な変数
+  - `NUXT_` プレフィックス: サーバーサイドのみで使用する機密変数
+
+```typescript
+// nuxt.config.ts
+export default defineNuxtConfig({
+  runtimeConfig: {
+    // サーバーサイド専用の機密変数
+    apiSecret: process.env.API_SECRET,
+    
+    // クライアント側に公開可能な変数
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE
+    }
+  }
+})
+```
+
+### 2. 認証とセキュリティ
+
+#### Supabase認証
+- 常にサーバーサイドで認証トークンを検証
+- クライアントサイドでは短命のセッショントークンを使用
+- パスワードリセット、多要素認証を実装
+
+```typescript
+// server/middleware/auth.ts
+export default defineEventHandler(async (event) => {
+  const supabase = serverSupabaseClient(event)
+  const session = await supabase.auth.getSession()
+  
+  if (!session) {
+    throw createError({ 
+      statusCode: 401, 
+      message: '認証が必要です' 
+    })
+  }
+})
+```
+
+#### パスワードポリシー
+- 最小長さ: 12文字以上
+- 複雑性要件:
+  - 大文字
+  - 小文字
+  - 数字
+  - 特殊文字
+- パスワードハッシュは常にサーバーサイドで処理
+
+### 3. 入力バリデーション
+
+- サーバーサイドとクライアントサイドの両方でバリデーション
+- zod または valibot を使用した型安全なバリデーション
+
+```typescript
+import { z } from 'zod'
+
+const UserSchema = z.object({
+  email: z.string().email('メールアドレスが無効です'),
+  password: z.string()
+    .min(12, 'パスワードは12文字以上必要です')
+    .regex(/[A-Z]/, '大文字を含める必要があります')
+    .regex(/[a-z]/, '小文字を含める必要があります')
+    .regex(/[0-9]/, '数字を含める必要があります')
+})
+```
+
+### 4. CORS設定
+
+- 厳密なCORS設定
+- 信頼できるオリジンのみを許可
+
+```typescript
+// nuxt.config.ts
+export default defineNuxtConfig({
+  nitro: {
+    routeRules: {
+      '/api/**': {
+        cors: true,
+        headers: {
+          'Access-Control-Allow-Origin': 'https://trusted-domain.com',
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        }
+      }
+    }
+  }
+})
+```
+
+### 5. レートリミット
+
+- APIエンドポイントにレートリミットを実装
+- DoS攻撃から保護
+
+```typescript
+// server/api/限定エンドポイント.ts
+import rateLimit from 'express-rate-limit'
+
+export default defineEventHandler((event) => {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15分
+    max: 100 // IPあたり100リクエスト
+  })
+})
+```
+
+### 6. セキュリティヘッダー
+
+```typescript
+// nuxt.config.ts
+export default defineNuxtConfig({
+  nitro: {
+    routeRules: {
+      '/**': {
+        headers: {
+          'X-Frame-Options': 'DENY',
+          'X-XSS-Protection': '1; mode=block',
+          'X-Content-Type-Options': 'nosniff',
+          'Referrer-Policy': 'strict-origin-when-cross-origin',
+          'Content-Security-Policy': 
+            "default-src 'self'; script-src 'self' 'unsafe-inline'"
+        }
+      }
+    }
+  }
+})
+```
+
+### 7. ロギングとモニタリング
+
+- 機密情報を含まないセキュアなロギング
+- 異常検知とアラート設定
+
+```typescript
+// utils/logger.ts
+export const secureLogger = {
+  error(message: string, context?: Record<string, unknown>) {
+    // 機密情報をマスク
+    const sanitizedContext = maskSensitiveData(context)
+    // ログ処理
+  }
+}
+```
+
+### 8. セキュリティスキャンと依存関係管理
+
+- 定期的な脆弱性スキャン
+- 依存関係の自動更新
+- GitHub Dependabot の設定
+
+```yaml
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    security-updates-limit: 5
+```
+
+### 9. データベースセキュリティ (Supabase)
+
+- Row Level Security (RLS) の積極的な活用
+- きめ細かな権限設定
+- 最小権限の原則
+
+```sql
+-- SupabaseでのRow Level Security例
+CREATE POLICY "Users can only see their own data" 
+ON users FOR SELECT 
+USING (auth.uid() = user_id);
+```
+
+### 10. クロスサイトスクリプティング（XSS）対策
+
+#### 入力バリデーションと無害化
+- すべてのユーザー入力を厳密にサニタイズ
+- DOMPurifyライブラリを使用したHTML無害化
+
+```typescript
+import DOMPurify from 'dompurify'
+
+// クライアントサイドでのサニタイズ
+const sanitizedInput = DOMPurify.sanitize(userInput)
+
+// サーバーサイドでのバリデーション
+function sanitizeInput(input: string): string {
+  return input
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+```
+
+#### Content Security Policy (CSP)の強化
+```typescript
+// nuxt.config.ts
+export default defineNuxtConfig({
+  nitro: {
+    routeRules: {
+      '/**': {
+        headers: {
+          'Content-Security-Policy': [
+            "default-src 'self'",
+            "script-src 'self' 'nonce-random123' 'strict-dynamic'",
+            "style-src 'self' 'nonce-random123'",
+            "img-src 'self' data:",
+            "connect-src 'self'",
+            "font-src 'self'",
+            "object-src 'none'",
+            "base-uri 'self'"
+          ].join('; ')
+        }
+      }
+    }
+  }
+})
+```
+
+### 11. クロスサイトリクエストフォージェリ（CSRF）対策
+
+#### トークンベースの保護
+```typescript
+// server/middleware/csrf.ts
+import { generateToken, validateToken } from '~/utils/csrfProtection'
+
+export default defineEventHandler(async (event) => {
+  // POSTリクエスト時にCSRFトークンを検証
+  if (event.method === 'POST') {
+    const body = await readBody(event)
+    const csrfToken = getHeader(event, 'x-csrf-token')
+    
+    if (!csrfToken || !validateToken(csrfToken)) {
+      throw createError({
+        statusCode: 403,
+        message: '不正なリクエストです'
+      })
+    }
+  }
+})
+
+// utils/csrfProtection.ts
+export function generateToken(userId: string): string {
+  const secret = useRuntimeConfig().csrfSecret
+  return crypto
+    .createHmac('sha256', secret)
+    .update(userId)
+    .digest('hex')
+}
+
+export function validateToken(token: string): boolean {
+  // トークンの検証ロジック
+  // 有効期限、ユーザー紐付けなどを確認
+}
+```
+
+### 12. 追加のセキュリティ推奨事項
+
+- 定期的なセキュリティ監査
+- 侵入テストの実施
+- セキュリティトレーニングの実施
+- インシデント対応計画の策定
+
+## コーディング規約
+
+- ESLint/Prettier の標準的なルールに準拠
+- Nuxt 3 のベストプラクティスに従う
+- Composition API / `<script setup>` を優先
+- サーバーサイドとクライアントサイドの明確な分離
+
+## コンポーネント設計と実装の規約
+
+### Nuxt 3 固有の規約追加
+
+- `~/components/` に共通/汎用コンポーネント配置
+- `~/pages/` にページコンポーネント配置
+- `~/layouts/` にレイアウトコンポーネント配置
+- サーバーコンポーネント (`*.server.vue`) の活用
+- コンポーネントは型安全性を重視
+
+### サーバーサイド API
+
+- `~/server/api/` にAPIルートを配置
+- トランスポート層のバリデーション
+- エラーハンドリングの強化
+- OpenAPI/Swagger仕様の自動生成
+
+## テスト戦略
+
+- Vitest によるユニットテスト
+- Nuxt Test Utils によるコンポーネントテスト
+- E2Eテストは Playwright を推奨
+- 100%のカバレッジを目指す
+
+## CI/CD パイプライン
+
+1. GitHub Actions で自動テスト
+2. Docker イメージのビルドと検証
+3. デプロイメント自動化
+4. セキュリティスキャン
+
+### GitHub Actions 例
+
+```yaml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, development ]
+  pull_request:
+    branches: [ main, development ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: yarn install
+      - run: yarn test
+      - run: yarn lint
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker Image
+        run: docker build -t myapp:${{ github.sha }} .
+```
+
+## 国際化 & アクセシビリティ
+
+- `nuxt-i18n` による多言語対応
+- WCAG 2.1 準拠
+- aria 属性の積極的な活用
+- パフォーマンスと accessibility スコアの向上
+
+### インストール推奨パッケージ
+
+```bash
+# Vue/Nuxt エコシステム
+yarn add -D @nuxt/devtools @nuxtjs/tailwindcss @pinia/nuxt nuxt-vue3-google-signin
+
+# テスト関連
+yarn add -D @nuxt/test-utils vitest @vitest/coverage-v8 playwright
+
+# 国際化 & アクセシビリティ
+yarn add -D nuxt-i18n @vueuse/nuxt @intlify/unplugin-vue-i18n
+```
+
+## その他のベストプラクティス
+
+- コードスプリッティング
+- 遅延ローディング
+- プリフェッチ戦略
+- Web Vitals の最適化
+- セキュアなデフォルト設定
+
+## 注意事項
+
+1. 機密情報は `.env` で管理
+2. `nuxt.config.ts` で環境変数の型安全性確保
+3. サーバーサイドとクライアントサイドの環境変数を明確に区別
+
+このガイドラインは、最新の Vue/Nuxt エコシステムとベストプラクティスを反映しています。プロジェクトの要件と状況に応じて柔軟に適用してください。
