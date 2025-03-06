@@ -33,12 +33,18 @@ export default defineNuxtConfig({
 
   // Supabase設定
   supabase: {
-    url: process.env.SUPABASE_URL,
-    key: process.env.SUPABASE_ANON_KEY,
+    redirect: false,
     redirectOptions: {
       login: '/auth/login',
       callback: '/auth/confirm',
       exclude: ['/'],
+    },
+    clientOptions: {
+      auth: {
+        flowType: 'pkce',
+        detectSessionInUrl: true,
+        persistSession: true,
+      },
     },
   },
 
@@ -48,6 +54,4 @@ export default defineNuxtConfig({
       baseUrl: process.env.BASE_URL || 'http://localhost:3000',
     },
   },
-
-  compatibilityDate: '2025-03-06',
 })

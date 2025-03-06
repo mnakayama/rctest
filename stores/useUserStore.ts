@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { useSupabaseClient, useSupabaseUser } from '#supabase/client'
-import type { Profile } from '~/types'
+import { useSupabaseClient, useSupabaseUser } from '#imports'
+import { ref, computed } from 'vue'
+import type { Profile, Database } from '~/types'
 
 export const useUserStore = defineStore('user', () => {
   // state
@@ -19,7 +20,7 @@ export const useUserStore = defineStore('user', () => {
     const user = useSupabaseUser()
     if (!user.value?.id) return
 
-    const supabase = useSupabaseClient()
+    const supabase = useSupabaseClient<Database>()
     isLoading.value = true
     error.value = null
 
@@ -39,11 +40,11 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  async function updateProfile(updates: Partial<Profile>) {
+  async function updateProfile(updates: Database['public']['Tables']['profiles']['Update']) {
     const user = useSupabaseUser()
     if (!user.value?.id) return
 
-    const supabase = useSupabaseClient()
+    const supabase = useSupabaseClient<Database>()
     isLoading.value = true
     error.value = null
 
@@ -66,7 +67,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function signUp(email: string, password: string, name: string) {
-    const supabase = useSupabaseClient()
+    const supabase = useSupabaseClient<Database>()
     isLoading.value = true
     error.value = null
 
@@ -89,7 +90,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function signIn(email: string, password: string) {
-    const supabase = useSupabaseClient()
+    const supabase = useSupabaseClient<Database>()
     isLoading.value = true
     error.value = null
 
@@ -110,7 +111,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function signOut() {
-    const supabase = useSupabaseClient()
+    const supabase = useSupabaseClient<Database>()
     isLoading.value = true
     error.value = null
 

@@ -1,8 +1,20 @@
--- Enable RLS
-ALTER DATABASE postgres SET "auth.jwt.claims.sub" TO 'defaults.user_id';
+-- スキーマ作成
+CREATE SCHEMA IF NOT EXISTS auth;
 
--- Users Profile Table
-CREATE TABLE public.profiles (
+-- データベースの設定
+ALTER DATABASE todo_app SET timezone TO 'Asia/Tokyo';
+
+-- 認証用のユーザーテーブル（簡易版）
+CREATE TABLE IF NOT EXISTS auth.users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  encrypted_password TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- プロフィールテーブル
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   email TEXT NOT NULL,
   name TEXT,
@@ -10,98 +22,42 @@ CREATE TABLE public.profiles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- Tasks Table
-CREATE TABLE public.tasks (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+-- タスクテーブル
+CREATE TABLE IF NOT EXISTS public.tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT,
-  status TEXT NOT NULL DEFAULT 'incomplete' CHECK (status IN ('incomplete', 'in_progress', 'completed')),
-  due_date DATE,
-  priority TEXT CHECK (priority IN ('high', 'medium', 'low')),
-  created_by UUID REFERENCES public.profiles(id) NOT NULL,
-  assigned_to UUID REFERENCES public.profiles(id),
+  status TEXT NOT NULL DEFAULT 'incomplete',
+  priority TEXT,
+  due_date TIMESTAMP WITH TIME ZONE,
+  created_by UUID REFERENCES auth.users(id) NOT NULL,
+  assigned_to UUID REFERENCES auth.users(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  CONSTRAINT status_check CHECK (status IN ('incomplete', 'in_progress', 'completed')),
+  CONSTRAINT priority_check CHECK (priority IN ('high', 'medium', 'low'))
 );
 
--- RLS Policies
+-- 外部キー制約
+ALTER TABLE public.tasks
+  ADD CONSTRAINT tasks_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id),
+  ADD CONSTRAINT tasks_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES profiles(id);
 
--- Profiles Policies
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own profile"
-  ON public.profiles
-  FOR SELECT
-  USING (auth.uid() = id);
-
-CREATE POLICY "Users can update own profile"
-  ON public.profiles
-  FOR UPDATE
-  USING (auth.uid() = id);
-
--- Tasks Policies
-ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
-
--- Anyone can view tasks they created or are assigned to
-CREATE POLICY "Users can view own tasks"
-  ON public.tasks
-  FOR SELECT
-  USING (
-    auth.uid() = created_by
-    OR auth.uid() = assigned_to
-  );
-
--- Only task creator can update
-CREATE POLICY "Users can update own tasks"
-  ON public.tasks
-  FOR UPDATE
-  USING (auth.uid() = created_by);
-
--- Only task creator can delete
-CREATE POLICY "Users can delete own tasks"
-  ON public.tasks
-  FOR DELETE
-  USING (auth.uid() = created_by);
-
--- Any authenticated user can create tasks
-CREATE POLICY "Users can create tasks"
-  ON public.tasks
-  FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL);
-
--- Functions and Triggers
-CREATE OR REPLACE FUNCTION public.handle_updated_at()
+-- タスクの更新時にupdated_atを自動更新
+CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = NOW();
+  NEW.updated_at = TIMEZONE('utc'::text, NOW());
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ language 'plpgsql';
 
--- Add updated_at trigger to profiles
-CREATE TRIGGER handle_profiles_updated_at
-  BEFORE UPDATE ON public.profiles
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_updated_at();
-
--- Add updated_at trigger to tasks
-CREATE TRIGGER handle_tasks_updated_at
+CREATE TRIGGER update_tasks_updated_at
   BEFORE UPDATE ON public.tasks
   FOR EACH ROW
-  EXECUTE FUNCTION public.handle_updated_at();
+  EXECUTE FUNCTION update_updated_at_column();
 
--- Set up public profiles for authenticated users
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email)
-  VALUES (NEW.id, NEW.email);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger for new user creation
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
+CREATE TRIGGER update_profiles_updated_at
+  BEFORE UPDATE ON public.profiles
   FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_user();
+  EXECUTE FUNCTION update_updated_at_column();
