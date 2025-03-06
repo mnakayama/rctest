@@ -93,6 +93,164 @@ services:
       - "5432:5432"
 ```
 
+## 命名規約 (Naming Conventions)
+
+### 1. 一般的な命名ルール (General Naming Rules)
+
+#### 言語別命名規則 (Language-Specific Naming Conventions)
+- TypeScript/Vue:
+  - `camelCase`: 変数、関数、メソッド
+  - `PascalCase`: クラス、コンポーネント、インターフェース
+  - `UPPER_SNAKE_CASE`: 定数
+
+#### 禁止事項 (Prohibited Practices)
+- 一文字の変数名の使用を避ける
+- 意味のない省略形の使用を避ける
+- 非英語の文字（全角文字）の使用を避ける
+
+### 2. ファイル命名規約 (File Naming Conventions)
+
+#### コンポーネント (Components)
+- `PascalCase`で命名
+- 機能または目的を明確に表現
+- 例:
+  - `UserProfileCard.vue`
+  - `AuthenticationForm.vue`
+  - `ProductListItem.vue`
+
+#### ページコンポーネント (Page Components)
+- `PascalCase`で命名し、`Page`サフィックスを付与
+- 対応するルートを反映
+- 例:
+  - `UserProfilePage.vue`
+  - `ProductListPage.vue`
+  - `DashboardPage.vue`
+
+#### コンポーズ関数 (Composable Functions)
+- `use`プレフィックスを使用
+- `camelCase`で命名
+- 機能を明確に示す
+- 例:
+  - `useAuthUser.ts`
+  - `useFormValidation.ts`
+  - `useApiClient.ts`
+
+#### ストア (Pinia Stores)
+- `use`プレフィックスと`Store`サフィックス
+- `PascalCase`
+- 例:
+  - `useUserStore.ts`
+  - `useCartStore.ts`
+  - `useAuthenticationStore.ts`
+
+#### ユーティリティ関数 (Utility Functions)
+- 明確で簡潔な名前
+- `camelCase`
+- 機能を示すプレフィックス/サフィックス
+- 例:
+  - `formatCurrency.ts`
+  - `validateEmail.ts`
+  - `generateRandomToken.ts`
+
+#### テストファイル (Test Files)
+- テスト対象のファイル名 + `.spec` または `.test`
+- 例:
+  - `UserProfileCard.spec.ts`
+  - `AuthenticationForm.test.ts`
+
+### 3. 変数・関数命名 (Variable and Function Naming)
+
+#### 変数命名 (Variable Naming)
+- データ型や用途を反映
+- プレフィックス/サフィックスで意味を明確化
+- 例:
+  - `isLoading`: ブール値
+  - `userList`: 配列
+  - `maxRetryCount`: 数値
+  - `currentUserProfile`: オブジェクト
+
+#### 関数・メソッド命名 (Function/Method Naming)
+- 動詞 + 目的語の形式
+- 明確な意図を示す
+- 例:
+  - `fetchUserData()`
+  - `validateForm()`
+  - `createNewUser()`
+  - `updateUserProfile()`
+
+#### イベントハンドラ (Event Handlers)
+- `on`プレフィックス
+- イベントの動作を示す
+- 例:
+  - `onSubmit`
+  - `onCancel`
+  - `onUserLogin`
+
+### 4. 環境変数命名 (Environment Variable Naming)
+
+#### Nuxt環境変数 (Nuxt Environment Variables)
+- `NUXT_PUBLIC_`: クライアント側に公開可能な変数
+- `NUXT_`: サーバーサイドのみの機密変数
+- 大文字 + `SNAKE_CASE`
+- 例:
+  - `NUXT_PUBLIC_API_URL`
+  - `NUXT_DATABASE_SECRET`
+
+### 5. クラス・インターフェース命名 (Class and Interface Naming)
+
+#### インターフェース (Interfaces)
+- `I`プレフィックス（オプション）
+- `PascalCase`
+- 名詞または形容詞
+- 例:
+  - `IUser`
+  - `UserProfile`
+  - `Authenticatable`
+
+#### 型エイリアス (Type Aliases)
+- インターフェースと同様の規則
+- 例:
+  - `UserType`
+  - `AuthenticationResponse`
+
+### 6. CSS/Tailwind クラス命名 (CSS/Tailwind Class Naming)
+
+#### カスタムクラス (Custom Classes)
+- `kebab-case`
+- 機能的な名前
+- 例:
+  - `user-card`
+  - `login-form`
+  - `primary-button`
+
+### 7. API/エンドポイント命名 (API/Endpoint Naming)
+
+#### RESTfulエンドポイント (RESTful Endpoints)
+- 名詞（リソース）+ アクション
+- 小文字 + ハイフン
+- 例:
+  - `/api/users`
+  - `/api/products`
+  - `/api/user-profile`
+
+### 8. 命名の推奨プラクティス (Naming Best Practices)
+
+- 一貫性を保つ
+- 意味のある名前を選ぶ
+- 自明でない略語は避ける
+- コンテキストに応じた適切な命名
+- 読みやすさと理解のしやすさを重視
+
+### 9. 禁止される命名パターン (Forbidden Naming Patterns)
+
+- 絵文字の使用
+- 非英語の文字
+- 意味のない省略形
+- 予約語との衝突
+- 特殊文字の使用
+
+この命名規約は、コードの可読性、一貫性、保守性を向上させることを目的としています。プロジェクトの特性に応じて適宜調整してください。
+
 ## セキュリティ対策
 
 ### 1. 環境変数管理
