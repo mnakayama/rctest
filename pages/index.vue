@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useTaskStore } from '~/stores/useTaskStore'
 import type { Task } from '~/types'
 
@@ -27,7 +27,6 @@ function handleTaskDeleted() {
 
 onMounted(async () => {
   await taskStore.fetchTasks()
-  taskStore.subscribeToChanges()
 })
 
 const incompleteTasks = computed(() => taskStore.getTasksByStatus('incomplete'))

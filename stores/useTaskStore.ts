@@ -1,8 +1,5 @@
 import { defineStore } from 'pinia'
-import { useSupabaseClient } from '#imports'
-import { ref, computed, onUnmounted } from 'vue'
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
-import type { Database } from '~/types'
+import { ref, computed } from 'vue'
 import type { Task, TaskCreate, TaskUpdate, TaskStatus, TaskPriority } from '~/types'
 import { useUserStore } from './useUserStore'
 
@@ -12,7 +9,6 @@ export const useTaskStore = defineStore('task', () => {
   const currentTask = ref<Task | null>(null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
-  let realtimeSubscription: RealtimeChannel | null = null
 
   // getters
   const getTasksByStatus = computed(() => {
@@ -40,79 +36,52 @@ export const useTaskStore = defineStore('task', () => {
 
   // actions
   async function fetchTasks() {
-    const supabase = useSupabaseClient<Database>()
     isLoading.value = true
     error.value = null
 
     try {
-      const { data, error: err } = await supabase
-        .from('tasks')
-        .select(
-          `
-          *,
-          created_by_profile:profiles!tasks_created_by_fkey(id, name, email),
-          assigned_to_profile:profiles!tasks_assigned_to_fkey(id, name, email)
-        `
-        )
-        .order('created_at', { ascending: false })
+      const config = useRuntimeConfig()
+      const apiBaseUrl = config.public.apiBaseUrl
+      const response = await fetch(`${apiBaseUrl}/api/tasks`)
+      if (!response.ok) {
+        throw new Error(`APIエラー: ${response.status}`)
+      }
 
-      if (err) throw err
-      tasks.value = data as Task[]
+      const data = await response.json()
+      tasks.value = data.tasks
     } catch (e) {
-      error.value = e instanceof Error ? e.message : '課題の取得に失敗しました'
+      error.value = e instanceof Error ? e.message : 'タスクの取得に失敗しました'
     } finally {
       isLoading.value = false
     }
   }
 
-  function subscribeToChanges() {
-    const supabase = useSupabaseClient<Database>()
-
-    // 既存のサブスクリプションをクリーンアップ
-    if (realtimeSubscription) {
-      realtimeSubscription.unsubscribe()
-    }
-
-    realtimeSubscription = supabase
-      .channel('tasks-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'tasks',
-        },
-        async (payload: RealtimePostgresChangesPayload<Task>) => {
-          if (payload.eventType === 'INSERT') {
-            const newTask = payload.new
-            tasks.value.unshift(newTask)
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedTask = payload.new
-            const index = tasks.value.findIndex((task) => task.id === updatedTask.id)
-            if (index !== -1) {
-              tasks.value[index] = updatedTask
-            }
-          } else if (payload.eventType === 'DELETE') {
-            const deletedTask = payload.old as Task
-            tasks.value = tasks.value.filter((task) => task.id !== deletedTask.id)
-          }
-        }
-      )
-      .subscribe()
-  }
-
   async function createTask(task: TaskCreate) {
-    const supabase = useSupabaseClient<Database>()
     isLoading.value = true
     error.value = null
 
     try {
-      const { data, error: err } = await supabase.from('tasks').insert([task]).select().single()
+      const config = useRuntimeConfig()
+      const apiBaseUrl = config.public.apiBaseUrl
+      const response = await fetch(`${apiBaseUrl}/api/tasks/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(task),
+      })
 
-      if (err) throw err
-      if (data) tasks.value.unshift(data)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.statusMessage || 'タスクの作成に失敗しました')
+      }
+
+      const data = await response.json()
+      if (data.task) {
+        tasks.value.unshift(data.task)
+      }
     } catch (e) {
-      error.value = e instanceof Error ? e.message : '課題の作成に失敗しました'
+      error.value = e instanceof Error ? e.message : 'タスクの作成に失敗しました'
       throw error.value
     } finally {
       isLoading.value = false
@@ -120,27 +89,34 @@ export const useTaskStore = defineStore('task', () => {
   }
 
   async function updateTask(id: string, updates: TaskUpdate) {
-    const supabase = useSupabaseClient<Database>()
     isLoading.value = true
     error.value = null
 
     try {
-      const { data, error: err } = await supabase
-        .from('tasks')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
+      const config = useRuntimeConfig()
+      const apiBaseUrl = config.public.apiBaseUrl
+      const response = await fetch(`${apiBaseUrl}/api/tasks/${id}/update`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      })
 
-      if (err) throw err
-      if (data) {
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.statusMessage || 'タスクの更新に失敗しました')
+      }
+
+      const data = await response.json()
+      if (data.task) {
         const index = tasks.value.findIndex((task) => task.id === id)
         if (index !== -1) {
-          tasks.value[index] = data
+          tasks.value[index] = data.task
         }
       }
     } catch (e) {
-      error.value = e instanceof Error ? e.message : '課題の更新に失敗しました'
+      error.value = e instanceof Error ? e.message : 'タスクの更新に失敗しました'
       throw error.value
     } finally {
       isLoading.value = false
@@ -148,30 +124,52 @@ export const useTaskStore = defineStore('task', () => {
   }
 
   async function deleteTask(id: string) {
-    const supabase = useSupabaseClient<Database>()
     isLoading.value = true
     error.value = null
 
     try {
-      const { error: err } = await supabase.from('tasks').delete().eq('id', id)
+      const config = useRuntimeConfig()
+      const apiBaseUrl = config.public.apiBaseUrl
+      const response = await fetch(`${apiBaseUrl}/api/tasks/${id}/delete`, {
+        method: 'DELETE',
+      })
 
-      if (err) throw err
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.statusMessage || 'タスクの削除に失敗しました')
+      }
+
       tasks.value = tasks.value.filter((task) => task.id !== id)
     } catch (e) {
-      error.value = e instanceof Error ? e.message : '課題の削除に失敗しました'
+      error.value = e instanceof Error ? e.message : 'タスクの削除に失敗しました'
       throw error.value
     } finally {
       isLoading.value = false
     }
   }
 
-  // クリーンアップ
-  onUnmounted(() => {
-    if (realtimeSubscription) {
-      realtimeSubscription.unsubscribe()
-      realtimeSubscription = null
+  async function fetchTaskById(id: string) {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const config = useRuntimeConfig()
+      const apiBaseUrl = config.public.apiBaseUrl
+      const response = await fetch(`${apiBaseUrl}/api/tasks/${id}`)
+      if (!response.ok) {
+        throw new Error(`APIエラー: ${response.status}`)
+      }
+
+      const data = await response.json()
+      currentTask.value = data.task
+      return data.task
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'タスクの取得に失敗しました'
+      return null
+    } finally {
+      isLoading.value = false
     }
-  })
+  }
 
   return {
     // state
@@ -186,9 +184,9 @@ export const useTaskStore = defineStore('task', () => {
     getSortedByDueDate,
     // actions
     fetchTasks,
+    fetchTaskById,
     createTask,
     updateTask,
     deleteTask,
-    subscribeToChanges,
   }
 })
