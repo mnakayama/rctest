@@ -37,8 +37,10 @@
 
 1. 開発環境は必ずDocker環境を使用
 2. 開発、本番環境用の Dockerfile を分離
-3. docker-compose.yml で開発環境の完全な再現性を確保
-4. .dockerignore の適切な設定
+3. フロントエンド、バックエンドのコンテナを分離
+4. docker-compose.yml で開発環境の完全な再現性を確保
+5. .dockerignore の適切な設定
+
 
 ## Git ワークフロー (GitHub Flow)
 
