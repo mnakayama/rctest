@@ -1,0 +1,49 @@
+{
+  "name": "todo-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "prisma generate && nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@nuxtjs/supabase": "^1.1.4",
+    "@pinia/nuxt": "^0.5.1",
+    "@prisma/client": "^6.4.1",
+    "@vueuse/core": "^10.7.0",
+    "@vueuse/nuxt": "^10.7.0",
+    "bcryptjs": "^3.0.2",
+    "daisyui": "^4.4.19",
+    "pinia": "^2.1.7",
+    "uuid": "^11.1.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "latest",
+    "@nuxtjs/eslint-config-typescript": "^12.1.0",
+    "@nuxtjs/tailwindcss": "^6.10.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.10.4",
+    "@types/uuid": "^9.0.7",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2",
+    "@vitest/coverage-v8": "^1.0.4",
+    "@vue/test-utils": "^2.4.3",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-nuxt": "^4.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "nuxt": "^3.8.2",
+    "prettier": "^3.1.0",
+    "prisma": "6.4.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4"
+  }
+}
