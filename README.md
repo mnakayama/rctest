@@ -1,9 +1,9 @@
-# TODO アプリケーション
+# TODOアプリケーション
 
 ## プロジェクト概要
 
-このプロジェクトは TODO アプリケーションです。
-Docker 環境で開発され、モダンな開発プラクティスとツールを採用しています。
+このプロジェクトは、Vue3/Nuxt3を使用したモダンなTODOアプリケーションです。
+Docker環境で開発され、モダンな開発プラクティスとツールを採用しています。
 
 ## 主な機能
 
@@ -33,15 +33,6 @@ Docker 環境で開発され、モダンな開発プラクティスとツール�
   - メールアドレス
   - パスワード
   - 名前
-
-## 画面
-
-- ログイン画面
-- ユーザー登録画面
-- タスク一覧表示画面
-  - モーダルで表示
-- タスク登録・詳細表示・編集画面
-  - モーダルで表示
 
 ## 技術スタック
 
@@ -77,10 +68,6 @@ Docker 環境で開発され、モダンな開発プラクティスとツール�
 - Prettier
 - TypeScript
 
-### CI/CD
-
-- GitHub Actions
-
 ## 開発環境のセットアップ
 
 ### 必要条件
@@ -89,22 +76,39 @@ Docker 環境で開発され、モダンな開発プラクティスとツール�
 - Docker Compose
 - Git
 
-## ディレクトリ構造（予定）
+### セットアップ手順
+
+1. リポジトリをクローン
+   ```bash
+   git clone <repository-url>
+   cd todo-app
+   ```
+
+2. Docker Composeでアプリケーションを起動
+   ```bash
+   docker-compose up -d
+   ```
+
+3. ブラウザでアクセス
+   ```
+   http://localhost:3000
+   ```
+
+## ディレクトリ構造
 
 ```
 [root-dir]/
-├── .github/            # GitHub Actions設定
 ├── components/         # Vueコンポーネント
 ├── composables/        # Vue Composables
-├── layouts/           # Nuxtレイアウト
-├── pages/             # ページコンポーネント
-├── plugins/           # Nuxtプラグイン
-├── public/            # 静的ファイル
-├── stores/            # Piniaストア
-├── types/             # TypeScript型定義
-├── docker/            # Docker関連ファイル
-├── tests/             # テストファイル
-└── utils/             # ユーティリティ関数
+├── layouts/            # Nuxtレイアウト
+├── middleware/         # Nuxtミドルウェア
+├── pages/              # ページコンポーネント
+├── public/             # 静的ファイル
+├── stores/             # Piniaストア
+├── types/              # TypeScript型定義
+├── docker/             # Docker関連ファイル
+├── tests/              # テストファイル
+└── utils/              # ユーティリティ関数
 ```
 
 ## セキュリティ対策
@@ -114,15 +118,3 @@ Docker 環境で開発され、モダンな開発プラクティスとツール�
 - XSS 対策
 - CSRF 対策
 - 入力バリデーション
-
-## コントリビューション
-
-1. このリポジトリをフォーク
-2. 機能ブランチを作成 (`git checkout -b feature/amazing-feature`)
-3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
-4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
-5. プルリクエストを作成
-
-## ライセンス
-
-## 作者
